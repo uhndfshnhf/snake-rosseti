@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Snake Glow: Obstacle Edition</title>
+    <title>Snake Glow: Tactical Edition</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;600&display=swap');
 
@@ -13,6 +13,7 @@
             --apple-color: #ff0055;
             --gold-color: #ffcc00;
             --wall-color: #444;
+            --warning-color: #ff0055;
             --ui-panel: rgba(255, 255, 255, 0.03);
         }
 
@@ -37,7 +38,6 @@
         .stat-label { font-family: 'Orbitron', sans-serif; font-size: 0.65rem; color: #888; text-transform: uppercase; }
         .stat-value { font-family: 'Orbitron', sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--snake-color); }
 
-        /* Estilo do Cronômetro de Combo */
         #combo-timer-container {
             width: 100%; height: 4px; background: rgba(255,255,255,0.1);
             margin-top: 5px; border-radius: 2px; overflow: hidden;
@@ -45,6 +45,20 @@
         #combo-timer-bar {
             width: 100%; height: 100%; background: var(--gold-color);
             transition: width 0.1s linear;
+        }
+
+        #game-container { position: relative; }
+
+        #warning-text {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-family: 'Orbitron'; color: #ff0055; font-size: 1.5rem;
+            text-shadow: 0 0 10px #ff0055; pointer-events: none; 
+            display: none; z-index: 50; text-align: center;
+            animation: blink 0.5s infinite;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0.3; }
         }
 
         canvas {
@@ -86,6 +100,7 @@
     </div>
 
     <div id="game-container">
+        <div id="warning-text">OBSTACLE INBOUND<br><small style="font-size:0.8rem">WATCH YOUR STEP</small></div>
         <canvas id="gameCanvas"></canvas>
         <div id="game-over">
             <h2 style="color:#ff0055; font-family:'Orbitron'">TERMINATED</h2>
@@ -102,22 +117,31 @@
         const multiplierCard = document.getElementById('multiplier-card');
         const multiplierText = document.getElementById('multiplier-text');
         const comboBar = document.getElementById('combo-timer-bar');
+        const warningLabel = document.getElementById('warning-text');
 
         const COLS = 22; const ROWS = 22; const TILE_SIZE = 25;
         canvas.width = COLS * TILE_SIZE; canvas.height = ROWS * TILE_SIZE;
 
         let snake, apple, obstacles, direction, nextDirection, score, gameLoop, isGameOver;
-        let combo = 0; let comboTimer = 0; const MAX_COMBO_TIME = 20; 
-        let highScore = localStorage.getItem('snakeHighScoreObs') || 0;
+        let combo = 0; let comboTimer = 0; const MAX_COMBO_TIME = 30; 
+        
+        let pendingObstacles = [];
+        let spawnTimer = 0; 
+        const SPAWN_DELAY = 18; // Tempo do timer (frames)
+
+        let highScore = localStorage.getItem('snakeHighScoreTactical') || 0;
         highScoreElement.textContent = highScore;
 
         function initGame() {
             snake = [{x: 10, y: 11}, {x: 9, y: 11}, {x: 8, y: 11}];
             obstacles = [];
+            pendingObstacles = [];
+            spawnTimer = 0;
             direction = 'RIGHT'; nextDirection = 'RIGHT';
             score = 0; combo = 0; comboTimer = 0;
             scoreElement.textContent = score;
-            spawnObstacles(); // Inicia com alguns obstáculos
+            warningLabel.style.display = 'none';
+            prepareObstacles(); 
             spawnApple();
             isGameOver = false;
             document.getElementById('game-over').style.display = 'none';
@@ -126,18 +150,25 @@
             gameLoop = setInterval(update, 110);
         }
 
-        function spawnObstacles() {
-            obstacles = [];
-            // A cada 50 pontos, aumenta o número de obstáculos
-            const numObstacles = 5 + Math.floor(score / 50) * 3; 
+        function prepareObstacles() {
+            pendingObstacles = [];
+            spawnTimer = SPAWN_DELAY;
+            warningLabel.style.display = 'block';
+            
+            // Dificuldade progressiva: mais blocos conforme a pontuação sobe
+            const numObstacles = 4 + Math.floor(score / 50) * 2; 
+            
             for (let i = 0; i < numObstacles; i++) {
                 let obs = {
                     x: Math.floor(Math.random() * COLS),
                     y: Math.floor(Math.random() * ROWS)
                 };
-                // Evita spawn em cima da cobra ou da cabeça
-                const onSnake = snake.some(s => s.x === obs.x && s.y === obs.y);
-                if (!onSnake) obstacles.push(obs);
+                
+                // Evita spawnar exatamente na cabeça da cobra
+                const isNearHead = (obs.x === snake[0].x && obs.y === snake[0].y);
+                if (!isNearHead) {
+                    pendingObstacles.push(obs);
+                }
             }
         }
 
@@ -147,7 +178,7 @@
                 y: Math.floor(Math.random() * ROWS),
                 type: Math.random() < 0.1 ? 'gold' : 'normal'
             };
-            // Não deixa nascer em cima da cobra ou obstáculos
+            // Não deixa maçã nascer dentro de obstáculos sólidos
             if (snake.some(s => s.x === apple.x && s.y === apple.y) || 
                 obstacles.some(o => o.x === apple.x && o.y === apple.y)) {
                 spawnApple();
@@ -164,7 +195,7 @@
             else if (direction === 'UP') head.y--;
             else if (direction === 'DOWN') head.y++;
 
-            // Colisões (Paredes, Próprio corpo, Obstáculos)
+            // Colisões Letais
             if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS || 
                 snake.some(s => s.x === head.x && s.y === head.y) ||
                 obstacles.some(o => o.x === head.x && o.y === head.y)) {
@@ -180,22 +211,33 @@
                 score += (apple.type === 'gold' ? 50 : 10) * Math.min(combo, 4);
                 scoreElement.textContent = score;
 
-                // Se mudou de faixa de 50 pontos, gera novos obstáculos
+                // A cada 50 pontos, reseta o mapa e prepara novos obstáculos
                 if (Math.floor(score / 50) > Math.floor(oldScore / 50)) {
-                    spawnObstacles();
+                    obstacles = []; // Limpa os antigos para o novo layout
+                    prepareObstacles();
                 }
 
                 if (score > highScore) {
                     highScore = score;
                     highScoreElement.textContent = highScore;
-                    localStorage.setItem('snakeHighScoreObs', highScore);
+                    localStorage.setItem('snakeHighScoreTactical', highScore);
                 }
                 spawnApple();
             } else {
                 snake.pop();
             }
 
-            // Lógica do Timer de Combo
+            // Lógica do Timer de Nascimento das Paredes
+            if (spawnTimer > 0) {
+                spawnTimer--;
+                if (spawnTimer === 0) {
+                    obstacles = [...pendingObstacles];
+                    pendingObstacles = [];
+                    warningLabel.style.display = 'none';
+                }
+            }
+
+            // Cronômetro do Combo
             if (comboTimer > 0) {
                 comboTimer--;
                 multiplierCard.style.visibility = 'visible';
@@ -213,19 +255,26 @@
             ctx.fillStyle = '#050505';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Desenhar Obstáculos
+            // 1. Desenhar Obstáculos Sólidos (Cinzas)
             ctx.fillStyle = '#333';
             ctx.shadowBlur = 0;
             obstacles.forEach(o => {
                 ctx.beginPath();
                 ctx.roundRect(o.x * TILE_SIZE + 2, o.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4, 3);
                 ctx.fill();
-                // Detalhe de "X" no obstáculo
-                ctx.strokeStyle = "#444";
-                ctx.strokeRect(o.x * TILE_SIZE + 5, o.y * TILE_SIZE + 5, TILE_SIZE - 10, TILE_SIZE - 10);
             });
 
-            // Desenhar Maçã
+            // 2. Desenhar Aviso de Obstáculos (Vermelho Pulsante - Sem Colisão ainda)
+            pendingObstacles.forEach(p => {
+                ctx.strokeStyle = '#ff0055';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(p.x * TILE_SIZE + 4, p.y * TILE_SIZE + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+                
+                ctx.fillStyle = `rgba(255, 0, 85, ${0.1 + Math.abs(Math.sin(Date.now()/200) * 0.3)})`;
+                ctx.fillRect(p.x * TILE_SIZE + 2, p.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+            });
+
+            // 3. Desenhar Maçã
             ctx.shadowBlur = 15;
             ctx.shadowColor = apple.type === 'gold' ? '#ffcc00' : '#ff0055';
             ctx.fillStyle = ctx.shadowColor;
@@ -233,7 +282,7 @@
             ctx.arc(apple.x * TILE_SIZE + TILE_SIZE/2, apple.y * TILE_SIZE + TILE_SIZE/2, 8, 0, Math.PI*2);
             ctx.fill();
 
-            // Desenhar Cobra
+            // 4. Desenhar Cobra
             ctx.shadowBlur = 15;
             ctx.shadowColor = '#00f2ff';
             snake.forEach((seg, i) => {
