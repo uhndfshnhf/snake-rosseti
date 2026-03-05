@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Snake Glow: Hyperdrive</title>
+    <title>Snake Glow: Obstacle Edition</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;600&display=swap');
 
@@ -12,109 +12,57 @@
             --snake-color: #00f2ff;
             --apple-color: #ff0055;
             --gold-color: #ffcc00;
+            --wall-color: #444;
             --ui-panel: rgba(255, 255, 255, 0.03);
         }
 
         body {
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
+            margin: 0; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; min-height: 100vh;
             background-color: var(--bg-color);
-            background-image: 
-                radial-gradient(circle at 50% 50%, #0a0a1a 0%, #020205 100%);
-            font-family: 'Poppins', sans-serif;
-            overflow: hidden;
-            color: white;
+            background-image: radial-gradient(circle at 50% 50%, #0a0a1a 0%, #020205 100%);
+            font-family: 'Poppins', sans-serif; overflow: hidden; color: white;
         }
 
         #ui-layer {
-            position: absolute;
-            top: 20px;
-            display: flex;
-            gap: 15px;
-            z-index: 10;
+            position: absolute; top: 20px; display: flex; gap: 15px; z-index: 10;
         }
 
         .glass-card {
-            background: var(--ui-panel);
-            backdrop-filter: blur(15px);
-            padding: 8px 20px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.1);
-            text-align: center;
-            min-width: 80px;
+            background: var(--ui-panel); backdrop-filter: blur(15px);
+            padding: 8px 20px; border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1); text-align: center; min-width: 90px;
         }
 
-        .stat-label {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 0.65rem;
-            color: #888;
-            text-transform: uppercase;
-        }
+        .stat-label { font-family: 'Orbitron', sans-serif; font-size: 0.65rem; color: #888; text-transform: uppercase; }
+        .stat-value { font-family: 'Orbitron', sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--snake-color); }
 
-        .stat-value {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.4rem;
-            font-weight: 700;
-            color: var(--snake-color);
-            text-shadow: 0 0 15px var(--snake-color);
+        /* Estilo do Cronômetro de Combo */
+        #combo-timer-container {
+            width: 100%; height: 4px; background: rgba(255,255,255,0.1);
+            margin-top: 5px; border-radius: 2px; overflow: hidden;
         }
-
-        #game-container {
-            position: relative;
-            transition: transform 0.3s ease;
+        #combo-timer-bar {
+            width: 100%; height: 100%; background: var(--gold-color);
+            transition: width 0.1s linear;
         }
 
         canvas {
-            display: block;
-            border-radius: 15px;
-            background: #000;
-            box-shadow: 0 0 40px rgba(0,0,0,0.5), inset 0 0 100px rgba(0, 242, 255, 0.05);
+            display: block; border-radius: 15px; background: #000;
+            box-shadow: 0 0 40px rgba(0,0,0,0.5);
         }
 
         #game-over {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.9);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-            z-index: 100;
+            position: absolute; inset: 0; background: rgba(0, 0, 0, 0.9);
+            display: none; flex-direction: column; align-items: center;
+            justify-content: center; border-radius: 15px; backdrop-filter: blur(10px); z-index: 100;
         }
-
-        h2 {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 2.5rem;
-            margin: 0;
-            color: #ff0055;
-            text-shadow: 0 0 20px #ff0055;
-        }
-
-        .final-score { margin-bottom: 20px; color: #aaa; }
 
         button {
-            padding: 12px 35px;
-            font-family: 'Orbitron', sans-serif;
-            background: transparent;
-            color: var(--snake-color);
-            border: 2px solid var(--snake-color);
-            border-radius: 5px;
-            cursor: pointer;
-            transition: 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        button:hover {
-            background: var(--snake-color);
-            color: #000;
-            box-shadow: 0 0 25px var(--snake-color);
+            padding: 12px 35px; font-family: 'Orbitron', sans-serif;
+            background: transparent; color: var(--snake-color);
+            border: 2px solid var(--snake-color); border-radius: 5px;
+            cursor: pointer; text-transform: uppercase; letter-spacing: 2px;
         }
     </style>
 </head>
@@ -129,18 +77,20 @@
             <div class="stat-label">Best</div>
             <div id="high-score" class="stat-value">0</div>
         </div>
-        <div class="glass-card" id="multiplier-card" style="display:none">
-            <div class="stat-label">Combo</div>
-            <div id="multiplier" class="stat-value" style="color:var(--gold-color)">x1</div>
+        <div class="glass-card" id="multiplier-card" style="visibility: hidden;">
+            <div class="stat-label">Combo <span id="multiplier-text">x1</span></div>
+            <div id="combo-timer-container">
+                <div id="combo-timer-bar"></div>
+            </div>
         </div>
     </div>
 
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
         <div id="game-over">
-            <h2>SYSTEM FAILURE</h2>
-            <p class="final-score">Score final: <span id="final-score-val">0</span></p>
-            <button id="restart-btn">Reboot System</button>
+            <h2 style="color:#ff0055; font-family:'Orbitron'">TERMINATED</h2>
+            <p id="final-score-val" style="margin-bottom:20px">Score: 0</p>
+            <button id="restart-btn">Restart</button>
         </div>
     </div>
 
@@ -149,78 +99,63 @@
         const ctx = canvas.getContext('2d');
         const scoreElement = document.getElementById('score');
         const highScoreElement = document.getElementById('high-score');
-        const gameOverScreen = document.getElementById('game-over');
-        const restartBtn = document.getElementById('restart-btn');
-        const multiplierElement = document.getElementById('multiplier');
         const multiplierCard = document.getElementById('multiplier-card');
+        const multiplierText = document.getElementById('multiplier-text');
+        const comboBar = document.getElementById('combo-timer-bar');
 
-        const COLS = 22;
-        const ROWS = 22;
-        const TILE_SIZE = 25;
+        const COLS = 22; const ROWS = 22; const TILE_SIZE = 25;
+        canvas.width = COLS * TILE_SIZE; canvas.height = ROWS * TILE_SIZE;
 
-        canvas.width = COLS * TILE_SIZE;
-        canvas.height = ROWS * TILE_SIZE;
-
-        let snake, apple, direction, nextDirection, score, gameLoop, isGameOver;
-        let particles = [];
-        let gameSpeed = 120;
-        let combo = 0;
-        let comboTimer = 0;
-        let highScore = localStorage.getItem('snakeHighScoreHyper') || 0;
-        
+        let snake, apple, obstacles, direction, nextDirection, score, gameLoop, isGameOver;
+        let combo = 0; let comboTimer = 0; const MAX_COMBO_TIME = 20; 
+        let highScore = localStorage.getItem('snakeHighScoreObs') || 0;
         highScoreElement.textContent = highScore;
-
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x; this.y = y; this.color = color;
-                this.size = Math.random() * 4 + 1;
-                this.speedX = (Math.random() - 0.5) * 10;
-                this.speedY = (Math.random() - 0.5) * 10;
-                this.life = 1.0;
-            }
-            update() {
-                this.x += this.speedX; this.y += this.speedY;
-                this.life -= 0.03;
-            }
-            draw() {
-                ctx.globalAlpha = this.life;
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-                ctx.fill();
-                ctx.globalAlpha = 1.0;
-            }
-        }
 
         function initGame() {
             snake = [{x: 10, y: 11}, {x: 9, y: 11}, {x: 8, y: 11}];
-            direction = 'RIGHT';
-            nextDirection = 'RIGHT';
-            score = 0;
-            gameSpeed = 120;
-            combo = 0;
+            obstacles = [];
+            direction = 'RIGHT'; nextDirection = 'RIGHT';
+            score = 0; combo = 0; comboTimer = 0;
             scoreElement.textContent = score;
+            spawnObstacles(); // Inicia com alguns obstáculos
             spawnApple();
             isGameOver = false;
-            gameOverScreen.style.display = 'none';
+            document.getElementById('game-over').style.display = 'none';
+            canvas.style.filter = "none";
             if (gameLoop) clearInterval(gameLoop);
-            gameLoop = setInterval(update, gameSpeed);
+            gameLoop = setInterval(update, 110);
+        }
+
+        function spawnObstacles() {
+            obstacles = [];
+            // A cada 50 pontos, aumenta o número de obstáculos
+            const numObstacles = 5 + Math.floor(score / 50) * 3; 
+            for (let i = 0; i < numObstacles; i++) {
+                let obs = {
+                    x: Math.floor(Math.random() * COLS),
+                    y: Math.floor(Math.random() * ROWS)
+                };
+                // Evita spawn em cima da cobra ou da cabeça
+                const onSnake = snake.some(s => s.x === obs.x && s.y === obs.y);
+                if (!onSnake) obstacles.push(obs);
+            }
         }
 
         function spawnApple() {
-            const isGold = Math.random() < 0.1; // 10% chance de maçã dourada
             apple = {
                 x: Math.floor(Math.random() * COLS),
                 y: Math.floor(Math.random() * ROWS),
-                type: isGold ? 'gold' : 'normal',
-                pulse: 0
+                type: Math.random() < 0.1 ? 'gold' : 'normal'
             };
-            if (snake.some(s => s.x === apple.x && s.y === apple.y)) spawnApple();
+            // Não deixa nascer em cima da cobra ou obstáculos
+            if (snake.some(s => s.x === apple.x && s.y === apple.y) || 
+                obstacles.some(o => o.x === apple.x && o.y === apple.y)) {
+                spawnApple();
+            }
         }
 
         function update() {
             if (isGameOver) return;
-
             direction = nextDirection;
             const head = { ...snake[0] };
 
@@ -229,103 +164,82 @@
             else if (direction === 'UP') head.y--;
             else if (direction === 'DOWN') head.y++;
 
-            // Colisões
+            // Colisões (Paredes, Próprio corpo, Obstáculos)
             if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS || 
-                snake.some((s, i) => i !== 0 && s.x === head.x && s.y === head.y)) {
+                snake.some(s => s.x === head.x && s.y === head.y) ||
+                obstacles.some(o => o.x === head.x && o.y === head.y)) {
                 return gameOver();
             }
 
             snake.unshift(head);
 
             if (head.x === apple.x && head.y === apple.y) {
-                // Sistema de Combo
+                const oldScore = score;
                 combo++;
-                comboTimer = 15;
-                const points = apple.type === 'gold' ? 50 : 10;
-                score += points * Math.min(combo, 4);
-                
+                comboTimer = MAX_COMBO_TIME;
+                score += (apple.type === 'gold' ? 50 : 10) * Math.min(combo, 4);
                 scoreElement.textContent = score;
-                createExplosion(head.x * TILE_SIZE + 12, head.y * TILE_SIZE + 12, apple.type === 'gold' ? '#ffcc00' : '#ff0055');
 
-                if (apple.type === 'gold' && snake.length > 5) {
-                    snake.pop(); snake.pop(); // Reduz a cobra!
+                // Se mudou de faixa de 50 pontos, gera novos obstáculos
+                if (Math.floor(score / 50) > Math.floor(oldScore / 50)) {
+                    spawnObstacles();
                 }
 
                 if (score > highScore) {
                     highScore = score;
                     highScoreElement.textContent = highScore;
-                    localStorage.setItem('snakeHighScoreHyper', highScore);
+                    localStorage.setItem('snakeHighScoreObs', highScore);
                 }
-
-                // Velocidade Dinâmica
-                if (gameSpeed > 60) {
-                    gameSpeed -= 1;
-                    clearInterval(gameLoop);
-                    gameLoop = setInterval(update, gameSpeed);
-                }
-                
                 spawnApple();
             } else {
                 snake.pop();
             }
 
+            // Lógica do Timer de Combo
             if (comboTimer > 0) {
                 comboTimer--;
-                multiplierCard.style.display = 'block';
-                multiplierElement.textContent = `x${Math.min(combo, 4)}`;
+                multiplierCard.style.visibility = 'visible';
+                multiplierText.textContent = `x${Math.min(combo, 4)}`;
+                comboBar.style.width = (comboTimer / MAX_COMBO_TIME) * 100 + "%";
             } else {
                 combo = 0;
-                multiplierCard.style.display = 'none';
+                multiplierCard.style.visibility = 'hidden';
             }
 
             render();
         }
 
-        function createExplosion(x, y, color) {
-            for (let i = 0; i < 20; i++) particles.push(new Particle(x, y, color));
-        }
-
         function render() {
-            // Efeito de rastro (Motion Blur)
-            ctx.fillStyle = 'rgba(2, 2, 5, 0.3)';
+            ctx.fillStyle = '#050505';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Grid sutil
-            ctx.strokeStyle = "rgba(0, 242, 255, 0.03)";
-            for(let i=0; i<COLS; i++) {
-                ctx.strokeRect(i*TILE_SIZE, 0, 0.1, canvas.height);
-                ctx.strokeRect(0, i*TILE_SIZE, canvas.width, 0.1);
-            }
-
-            particles.forEach((p, i) => {
-                p.update(); p.draw();
-                if (p.life <= 0) particles.splice(i, 1);
+            // Desenhar Obstáculos
+            ctx.fillStyle = '#333';
+            ctx.shadowBlur = 0;
+            obstacles.forEach(o => {
+                ctx.beginPath();
+                ctx.roundRect(o.x * TILE_SIZE + 2, o.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4, 3);
+                ctx.fill();
+                // Detalhe de "X" no obstáculo
+                ctx.strokeStyle = "#444";
+                ctx.strokeRect(o.x * TILE_SIZE + 5, o.y * TILE_SIZE + 5, TILE_SIZE - 10, TILE_SIZE - 10);
             });
 
             // Desenhar Maçã
-            const ax = apple.x * TILE_SIZE + TILE_SIZE/2;
-            const ay = apple.y * TILE_SIZE + TILE_SIZE/2;
-            apple.pulse += 0.15;
-            const s = Math.sin(apple.pulse) * 4;
-            
-            ctx.shadowBlur = 15 + s;
+            ctx.shadowBlur = 15;
             ctx.shadowColor = apple.type === 'gold' ? '#ffcc00' : '#ff0055';
             ctx.fillStyle = ctx.shadowColor;
             ctx.beginPath();
-            ctx.arc(ax, ay, 8 + s/2, 0, Math.PI*2);
+            ctx.arc(apple.x * TILE_SIZE + TILE_SIZE/2, apple.y * TILE_SIZE + TILE_SIZE/2, 8, 0, Math.PI*2);
             ctx.fill();
-            ctx.shadowBlur = 0;
 
             // Desenhar Cobra
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#00f2ff';
             snake.forEach((seg, i) => {
-                const x = seg.x * TILE_SIZE;
-                const y = seg.y * TILE_SIZE;
                 ctx.fillStyle = i === 0 ? '#00f2ff' : `rgba(0, 150, 255, ${1 - i/snake.length})`;
-                ctx.shadowBlur = i === 0 ? 20 : 0;
-                ctx.shadowColor = '#00f2ff';
-                
                 ctx.beginPath();
-                ctx.roundRect(x + 2, y + 2, TILE_SIZE - 4, TILE_SIZE - 4, i === 0 ? 8 : 4);
+                ctx.roundRect(seg.x * TILE_SIZE + 1, seg.y * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2, i === 0 ? 8 : 4);
                 ctx.fill();
             });
         }
@@ -333,9 +247,9 @@
         function gameOver() {
             isGameOver = true;
             clearInterval(gameLoop);
-            document.getElementById('final-score-val').textContent = score;
-            gameOverScreen.style.display = 'flex';
-            canvas.style.filter = "grayscale(1) brightness(0.5)";
+            document.getElementById('final-score-val').textContent = "Score Final: " + score;
+            document.getElementById('game-over').style.display = 'flex';
+            canvas.style.filter = "grayscale(1) contrast(1.2)";
         }
 
         window.addEventListener('keydown', e => {
@@ -347,11 +261,7 @@
             }
         });
 
-        restartBtn.addEventListener('click', () => {
-            canvas.style.filter = "none";
-            initGame();
-        });
-
+        document.getElementById('restart-btn').addEventListener('click', initGame);
         initGame();
     </script>
 </body>
